@@ -3,17 +3,17 @@ import { PlaywrightCrawler, ProxyConfiguration } from 'crawlee';
 
 import { router } from './routes.js';
 
-const startUrls = ['https://www.nykaa.com/foxtale-cleanser-moisturizer-sunscreen-dewy-vitamin-c-serum-combo/p/11775078?productId=11775078&pps=19'];
+const startUrls = ['https://www.nykaa.com/skin/moisturizers/night-cream/c/8395?page_no=1&sort=popularity&eq=desktop'];
 
 const crawler = new PlaywrightCrawler({
     // proxyConfiguration: new ProxyConfiguration({ proxyUrls: ['...'] }),
     requestHandler: router,
     // Comment this option to scrape the full website.
-    maxRequestsPerCrawl: 20,
+    maxRequestsPerCrawl: 100,
     headless: true,
     maxConcurrency: 1,
-    maxRequestsPerMinute: 10,
-    sameDomainDelaySecs: 10,
+    maxRequestsPerMinute: 20,
+    sameDomainDelaySecs: 5,
     errorHandler: async ({ request, page, log }) => {
         // save screenshot
         log.error(`Failed to load ${request.loadedUrl}`);
@@ -25,7 +25,7 @@ const crawler = new PlaywrightCrawler({
         const queryParams = url.searchParams;
         // get product id
         const productId = queryParams.get('productId');
-        await page.screenshot({ path: `screenshots/${productId}.png` });
+        await page.screenshot({ path: `storage/screenshots/${productId}.png` });
     }    
 });
 

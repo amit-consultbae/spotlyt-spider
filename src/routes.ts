@@ -2,10 +2,35 @@ import { Dataset, createPlaywrightRouter } from 'crawlee';
 
 export const router = createPlaywrightRouter();
 
-router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
+router.addDefaultHandler(async ({ request, page, enqueueLinks, crawler , log }) => {
     const title = await page.title();
     const requestUrl = request.loadedUrl;
     log.info(`Starting Crawling on : ${title}`, { url: requestUrl });
+    const paginationContainer = await page.locator('.product-listing').locator('>div').nth(1);
+    const paginationInfo = await paginationContainer.locator('>span').first().innerText();
+    const totalPages = await paginationInfo.split('of').length > 1 ? Number(paginationInfo.split('of')[1].trim()) : 1;
+    log.info(`Total Pages: ${totalPages}`);
+    if (totalPages > 1 && requestUrl) {        
+        for (let i = 2; i <= totalPages; i++) {
+            const urlObj = new URL(requestUrl);
+            urlObj.searchParams.set('page_no', i.toString());
+            const url = urlObj.toString(); 
+            crawler.requestQueue?.addRequest({
+                url: urlObj.toString(),
+                label: "productList"
+            });
+        }
+    }            
+    await enqueueLinks({
+        selector: '.productWrapper a',
+        label: "productPage"
+    })
+});
+
+router.addHandler('productList', async ({ request, page, enqueueLinks, log }) => {
+    const title = await page.title();
+    const requestUrl = request.loadedUrl;    
+    log.info(`Starting Scraping Product List Page: ${title}`, { url: requestUrl });
     await enqueueLinks({
         selector: '.productWrapper a',
         label: "productPage"
