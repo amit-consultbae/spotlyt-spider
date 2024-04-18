@@ -3,7 +3,7 @@ import { PlaywrightCrawler, ProxyConfiguration } from 'crawlee';
 
 import { router } from './routes.js';
 
-const startUrls = ['https://www.nykaa.com/plum-green-tea-renewed-clarity-night-gel/p/220111?productId=220111&pps=13'];
+const startUrls = ['https://www.nykaa.com/foxtale-cleanser-moisturizer-sunscreen-dewy-vitamin-c-serum-combo/p/11775078?productId=11775078&pps=19'];
 
 const crawler = new PlaywrightCrawler({
     // proxyConfiguration: new ProxyConfiguration({ proxyUrls: ['...'] }),

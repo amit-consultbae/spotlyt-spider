@@ -2,20 +2,26 @@ import { Dataset, createPlaywrightRouter } from 'crawlee';
 
 export const router = createPlaywrightRouter();
 
-// router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
-//     const title = await page.title();
-//     const requestUrl = request.loadedUrl;
-//     log.info(`Starting Crawling on : ${title}`, { url: requestUrl });
-//     await enqueueLinks({
-//         selector: '.productWrapper a',
-//         label: "productPage"
-//     })
-// });
-
-router.addDefaultHandler(async ({ request, page, log }) => {
+router.addDefaultHandler(async ({ request, page, enqueueLinks, log }) => {
     const title = await page.title();
     const requestUrl = request.loadedUrl;
-    log.info(`${title}`, { url: requestUrl });
+    log.info(`Starting Crawling on : ${title}`, { url: requestUrl });
+    await enqueueLinks({
+        selector: '.productWrapper a',
+        label: "productPage"
+    })
+});
+
+router.addHandler('productPage', async ({ request, page, log }) => {
+    const title = await page.title();
+    const requestUrl = request.loadedUrl;
+    log.info("Starting Scraping Product Page: " + title, { url: requestUrl })
+
+    const categoryBreadCrumb = await page.locator("a:text('Home') + span").locator('..').locator('..').locator('a');
+    const categoryBreadCrumbCount = await categoryBreadCrumb.count();
+    const subCategory = categoryBreadCrumbCount > 1 ? await categoryBreadCrumb.nth(categoryBreadCrumbCount-1).innerText() : '';
+    const category = categoryBreadCrumbCount > 2 ? await categoryBreadCrumb.nth(categoryBreadCrumbCount-2).innerText() : '';
+
     // Get Product Name and Price
     const productContainer = await page.locator('h1').locator('..');
     const productName = await page.locator('h1').innerText();
@@ -37,18 +43,32 @@ router.addDefaultHandler(async ({ request, page, log }) => {
     }
     log.info(`Product Name: ${productName} Price: ${productMRPPrice}`, { url: requestUrl });
 
+    // Get Images
+    const productImageContainer = await page.locator('.slide-view-container img');
+    const imageCount = await productImageContainer.count();
+    const productImages = [];
+    for (let i = 0; i < imageCount; i++) {
+        const image = await productImageContainer.nth(i);
+        const imageUrl = await image.getAttribute('src');
+        productImages.push(imageUrl);
+    }
+
+
     // Get Description
     if ((await page.$("h3:text('Description')")) !== null) {
         const descriptionTab = await page.locator("h3:text('Description')");
         await descriptionTab.click();
     }
     const descriptionTabContainer = await page.locator('#content-details')
-    let productDescription = await descriptionTabContainer.locator('p').first().innerText();    
-    let productExpireDate = await descriptionTabContainer.locator(":text('Expiry Date:') ")
-    .filter({
-        hasText: 'Expiry Date:'
-    }).first().innerText();
-    productExpireDate = productExpireDate.split('Expiry Date: ').length > 1 ? productExpireDate.split('Expiry Date:')[1] : '';
+    let productDescription = await descriptionTabContainer.locator('p').first().innerText(); 
+    let productExpireDate = '';
+    if (await descriptionTabContainer.locator(":text('Expiry Date:') ").isVisible()) {
+        productExpireDate = await descriptionTabContainer.locator(":text('Expiry Date:') ")
+        .filter({
+            hasText: 'Expiry Date:'
+        }).first().innerText();
+        productExpireDate = productExpireDate.split('Expiry Date: ').length > 1 ? productExpireDate.split('Expiry Date:')[1] : '';
+    }
     let productOrigin = await descriptionTabContainer.locator(":text('Country of Origin:')  + p").innerText();
     let productManufacture = await descriptionTabContainer.locator(":text('Manufacturer:')  + p").innerText();    
 
@@ -126,10 +146,13 @@ router.addDefaultHandler(async ({ request, page, log }) => {
     const dataset = await Dataset.open('nykaa');
     await dataset.pushData({
         url: request.loadedUrl,
+        category: category,
+        subCategory: subCategory,
         name: productName,
         price: productMRPPrice,
         salePrice: productSalesPrice,
         discount: productDiscount,
+        images: productImages,
         description: productDescription,
         expireAt: productExpireDate,
         origin: productOrigin,
@@ -140,4 +163,7 @@ router.addDefaultHandler(async ({ request, page, log }) => {
         numberOfRatings: verifiedRatings,
         reviews: reviewData
     });
+
+    log.info("Ending Scraping Product Page: " + title, { url: requestUrl })
+
 });
